@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import ru.yandex.practicum.kafka.telemetry.model.hub.events.HubEvent;
+import ru.yandex.practicum.kafka.telemetry.model.hub.events.BaseHubEvent;
 import ru.yandex.practicum.kafka.telemetry.model.hub.events.HubEventType;
 import ru.yandex.practicum.kafka.telemetry.model.sensors.SensorEvent;
 import ru.yandex.practicum.kafka.telemetry.model.sensors.SensorEventType;
@@ -60,12 +60,13 @@ public class CollectorController {
 
 
     @PostMapping("/hubs")
-    public ResponseEntity<Void> collectHubEvent(@Valid @RequestBody HubEvent event) {
+    public ResponseEntity<Void> collectHubEvent(@Valid @RequestBody BaseHubEvent event) {
 
         try {
             log.info(objectMapper.writeValueAsString(event));
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize HubEvent to JSON", e);
+
         }
 
         if (hubEventHandlers.containsKey(event.getType())) {

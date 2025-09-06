@@ -2,9 +2,7 @@ package ru.yandex.practicum.kafka.telemetry.service.handler.sensors;
 
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
-import ru.yandex.practicum.kafka.telemetry.event.LightSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.TemperatureSensorAvro;
-import ru.yandex.practicum.kafka.telemetry.model.sensors.LightSensorEvent;
 import ru.yandex.practicum.kafka.telemetry.model.sensors.SensorEvent;
 import ru.yandex.practicum.kafka.telemetry.model.sensors.SensorEventType;
 import ru.yandex.practicum.kafka.telemetry.model.sensors.TemperatureSensorEvent;

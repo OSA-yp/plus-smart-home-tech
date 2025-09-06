@@ -1,17 +1,20 @@
 package ru.yandex.practicum.kafka.telemetry.model.hub.events;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
-public class DeviceRemovedEvent extends HubEvent {
+public class ScenarioRemovedHubEvent extends BaseHubEvent {
     @Override
     public HubEventType getType() {
-        return HubEventType.DEVICE_REMOVED;
+        return HubEventType.SCENARIO_REMOVED;
     }
 
     @NotBlank
-    private String id; // ID устройства
+    @Size(min = 3)
+    private String name;
+
 }

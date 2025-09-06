@@ -2,9 +2,7 @@ package ru.yandex.practicum.kafka.telemetry.service.handler.sensors;
 
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
-import ru.yandex.practicum.kafka.telemetry.event.MotionSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SwitchSensorAvro;
-import ru.yandex.practicum.kafka.telemetry.model.sensors.MotionSensorEvent;
 import ru.yandex.practicum.kafka.telemetry.model.sensors.SensorEvent;
 import ru.yandex.practicum.kafka.telemetry.model.sensors.SensorEventType;
 import ru.yandex.practicum.kafka.telemetry.model.sensors.SwitchSensorEvent;
