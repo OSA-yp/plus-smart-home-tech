@@ -1,4 +1,4 @@
-package ru.yandex.practicum.kafka.telemetry.service; // Или другой подходящий пакет
+package ru.yandex.practicum.kafka.telemetry.service;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import ru.yandex.practicum.kafka.serializer.GeneralAvroSerializer;
 
+import java.time.Duration;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
@@ -61,7 +62,8 @@ public class EventProducer {
     @PreDestroy
     public void close() {
         if (producer != null) {
-            producer.close();
+            producer.flush();
+            producer.close(Duration.ofMillis(5000));
             log.info("Kafka producer закрыт");
         }
     }
