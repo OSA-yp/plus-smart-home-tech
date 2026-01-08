@@ -5,6 +5,9 @@
 *.iml
 *.ipr
 
+.vscode/
+.cursor/
+
 ### Java ###
 # Compiled class file
 *.class
