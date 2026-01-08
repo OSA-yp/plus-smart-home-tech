@@ -1,6 +1,5 @@
 package ru.yandex.practicum.kafka.telemetry.service.processor;
 
-import com.google.protobuf.Empty;
 import com.google.protobuf.Timestamp;
 import io.grpc.StatusRuntimeException;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +12,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 import ru.yandex.practicum.grpc.telemetry.event.ActionTypeProto;
 import ru.yandex.practicum.grpc.telemetry.event.DeviceActionProto;
 import ru.yandex.practicum.grpc.telemetry.event.DeviceActionRequest;
@@ -26,7 +26,6 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -43,6 +42,7 @@ public class SnapshotProcessor {
     private String snapshotsTopic;
 
     private final ScenarioRepository scenarioRepository;
+    private final TransactionTemplate transactionTemplate;
 
     @GrpcClient("hub-router")
     private HubRouterControllerGrpc.HubRouterControllerBlockingStub hubRouterClient;
@@ -59,6 +59,7 @@ public class SnapshotProcessor {
             consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, SnapshotDeserializer.class);
             consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
             consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+            consumerProps.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
 
             consumer = new KafkaConsumer<>(consumerProps);
             consumer.subscribe(Collections.singletonList(snapshotsTopic));
@@ -67,7 +68,7 @@ public class SnapshotProcessor {
 
             // Цикл обработки снапшотов
             while (!Thread.currentThread().isInterrupted()) {
-                ConsumerRecords<String, SensorsSnapshotAvro> records = consumer.poll(java.time.Duration.ofMillis(100));
+                ConsumerRecords<String, SensorsSnapshotAvro> records = consumer.poll(java.time.Duration.ofMillis(1000));
                 if (!records.isEmpty()) {
                     log.info("Received {} snapshot records from Kafka", records.count());
                 }
@@ -75,7 +76,10 @@ public class SnapshotProcessor {
                     SensorsSnapshotAvro snapshot = record.value();
                     if (snapshot != null) {
                         try {
-                            processSnapshot(snapshot);
+                            transactionTemplate.execute(status -> {
+                                processSnapshot(snapshot);
+                                return null;
+                            });
                         } catch (Exception e) {
                             log.error("Error processing snapshot: {}", e.getMessage(), e);
                         }
@@ -101,7 +105,7 @@ public class SnapshotProcessor {
         }
     }
 
-    private void processSnapshot(SensorsSnapshotAvro snapshot) {
+    protected void processSnapshot(SensorsSnapshotAvro snapshot) {
         String hubId = snapshot.getHubId() != null ? snapshot.getHubId().toString() : null;
         if (hubId == null) {
             log.warn("Snapshot has null hubId");
@@ -118,6 +122,14 @@ public class SnapshotProcessor {
         }
 
         log.info("Found {} scenarios for hubId: {}", scenarios.size(), hubId);
+        
+        // Инициализируем ленивую коллекцию scenarioActions для всех сценариев
+        // Это загрузит коллекции через батчинг благодаря @BatchSize
+        for (Scenario scenario : scenarios) {
+            if (scenario.getScenarioActions() != null) {
+                scenario.getScenarioActions().size(); // Инициализация ленивой коллекции
+            }
+        }
         
         for (Scenario scenario : scenarios) {
             log.debug("Checking scenario: name={}, hubId={}", scenario.getName(), hubId);

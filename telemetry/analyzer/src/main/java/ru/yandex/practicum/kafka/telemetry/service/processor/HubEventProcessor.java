@@ -50,6 +50,7 @@ public class HubEventProcessor implements Runnable {
             consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, HubEventDeserializer.class);
             consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
             consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
+            consumerProps.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
 
             consumer = new KafkaConsumer<>(consumerProps);
             consumer.subscribe(Collections.singletonList(hubEventsTopic));
@@ -58,7 +59,7 @@ public class HubEventProcessor implements Runnable {
 
             // Цикл опроса
             while (!Thread.currentThread().isInterrupted()) {
-                ConsumerRecords<String, HubEvent> records = consumer.poll(Duration.ofMillis(100));
+                ConsumerRecords<String, HubEvent> records = consumer.poll(Duration.ofMillis(1000));
                 if (!records.isEmpty()) {
                     log.info("Received {} hub event records from Kafka", records.count());
                 }
@@ -154,14 +155,18 @@ public class HubEventProcessor implements Runnable {
                     return scenarioRepository.save(newScenario);
                 });
 
-        // Удаляем старые условия и действия
-        if (scenario.getScenarioConditions() != null) {
-            scenario.getScenarioConditions().clear();
+        // Инициализируем и удаляем старые условия и действия
+        // Используем removeAll() вместо clear() для сохранения ссылки на оригинальную коллекцию
+        if (scenario.getScenarioConditions() == null) {
+            scenario.setScenarioConditions(new java.util.ArrayList<>());
+        } else {
+            scenario.getScenarioConditions().removeAll(new java.util.ArrayList<>(scenario.getScenarioConditions()));
         }
-        if (scenario.getScenarioActions() != null) {
-            scenario.getScenarioActions().clear();
+        if (scenario.getScenarioActions() == null) {
+            scenario.setScenarioActions(new java.util.ArrayList<>());
+        } else {
+            scenario.getScenarioActions().removeAll(new java.util.ArrayList<>(scenario.getScenarioActions()));
         }
-        scenarioRepository.save(scenario);
 
         // Сохраняем условия
         if (event.getConditions() != null) {
