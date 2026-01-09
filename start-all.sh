@@ -133,9 +133,30 @@ mkdir -p logs
 log_info "Сборка родительского проекта..."
 mvn clean install -DskipTests -q
 
-# Шаг 3: Запуск Config Server
+# Шаг 3: Запуск Eureka Server
 log_info "========================================="
-log_info "Шаг 3: Запуск Config Server"
+log_info "Шаг 3: Запуск Eureka Server"
+log_info "========================================="
+
+log_info "Запуск Eureka Server..."
+cd infra/discovery-server
+mvn spring-boot:run > ../../logs/eureka-server.log 2>&1 &
+EUREKA_SERVER_PID=$!
+cd ../..
+
+# Ждем запуска Eureka Server
+if wait_for_http "http://localhost:8761" "Eureka Server"; then
+    log_success "Eureka Server запущен (PID: $EUREKA_SERVER_PID)"
+    log_info "Ожидание готовности Eureka Server к приему регистраций..."
+    sleep 3
+else
+    log_error "Eureka Server не запустился. Проверьте логи: logs/eureka-server.log"
+    exit 1
+fi
+
+# Шаг 4: Запуск Config Server
+log_info "========================================="
+log_info "Шаг 4: Запуск Config Server"
 log_info "========================================="
 
 log_info "Запуск Config Server..."
@@ -147,14 +168,16 @@ cd ../..
 # Ждем запуска Config Server
 if wait_for_http "http://localhost:8888/actuator/health" "Config Server"; then
     log_success "Config Server запущен (PID: $CONFIG_SERVER_PID)"
+    log_info "Ожидание регистрации Config Server в Eureka..."
+    sleep 3
 else
     log_error "Config Server не запустился. Проверьте логи: logs/config-server.log"
     exit 1
 fi
 
-# Шаг 4: Запуск Collector
+# Шаг 5: Запуск Collector
 log_info "========================================="
-log_info "Шаг 4: Запуск Collector"
+log_info "Шаг 5: Запуск Collector"
 log_info "========================================="
 
 log_info "Запуск Collector..."
@@ -167,9 +190,9 @@ log_info "Ожидание запуска Collector..."
 sleep 10
 log_success "Collector запущен (PID: $COLLECTOR_PID)"
 
-# Шаг 5: Запуск Aggregator
+# Шаг 6: Запуск Aggregator
 log_info "========================================="
-log_info "Шаг 5: Запуск Aggregator"
+log_info "Шаг 6: Запуск Aggregator"
 log_info "========================================="
 
 log_info "Запуск Aggregator..."
@@ -182,9 +205,9 @@ log_info "Ожидание запуска Aggregator..."
 sleep 10
 log_success "Aggregator запущен (PID: $AGGREGATOR_PID)"
 
-# Шаг 6: Запуск Analyzer
+# Шаг 7: Запуск Analyzer
 log_info "========================================="
-log_info "Шаг 6: Запуск Analyzer"
+log_info "Шаг 7: Запуск Analyzer"
 log_info "========================================="
 
 log_info "Запуск Analyzer..."
@@ -197,11 +220,12 @@ log_info "Ожидание запуска Analyzer..."
 sleep 10
 log_success "Analyzer запущен (PID: $ANALYZER_PID)"
 
-# Создание файла с PID процессов для остановки
-echo "$CONFIG_SERVER_PID" > logs/pids.txt
-echo "$COLLECTOR_PID" >> logs/pids.txt
+# Создание файла с PID процессов для остановки (в обратном порядке запуска)
+echo "$ANALYZER_PID" > logs/pids.txt
 echo "$AGGREGATOR_PID" >> logs/pids.txt
-echo "$ANALYZER_PID" >> logs/pids.txt
+echo "$COLLECTOR_PID" >> logs/pids.txt
+echo "$CONFIG_SERVER_PID" >> logs/pids.txt
+echo "$EUREKA_SERVER_PID" >> logs/pids.txt
 
 # Финальный вывод
 log_info "========================================="
@@ -209,6 +233,7 @@ log_success "Все сервисы запущены!"
 log_info "========================================="
 echo ""
 log_info "Запущенные сервисы:"
+echo "  - Eureka Server: http://localhost:8761 (PID: $EUREKA_SERVER_PID)"
 echo "  - Config Server: http://localhost:8888 (PID: $CONFIG_SERVER_PID)"
 echo "  - Collector: http://localhost:8080 (PID: $COLLECTOR_PID)"
 echo "  - Aggregator: (PID: $AGGREGATOR_PID)"
