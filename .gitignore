@@ -128,3 +128,8 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+### Project specific ###
+# Logs directory
+logs/
+*.log
