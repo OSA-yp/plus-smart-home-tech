@@ -48,7 +48,7 @@ public class EventProducer {
                 if (exception != null) {
                     log.warn("Ошибка отправки сообщения в Kafka topic '{}': {}", topic, exception.getMessage(), exception);
                 } else {
-                    log.info("Сообщение успешно отправлено в топик: {}, partition: {}, offset: {}",
+                    log.info("Event was send to topic: {}, partition: {}, offset: {}",
                             metadata.topic(), metadata.partition(), metadata.offset());
                 }
             });
@@ -64,7 +64,7 @@ public class EventProducer {
         if (producer != null) {
             producer.flush();
             producer.close(Duration.ofMillis(5000));
-            log.info("Kafka producer закрыт");
+            log.info("Kafka producer closed");
         }
     }
 }
