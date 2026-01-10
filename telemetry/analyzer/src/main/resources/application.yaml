@@ -8,6 +8,44 @@ spring:
       discovery:
         enabled: true
         serviceId: config-server
+      fail-fast: false
+  datasource:
+    url: jdbc:postgresql://localhost:5432/analyzer_db
+    username: analyzer_user
+    password: analyzer_password
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+
+grpc:
+  client:
+    hub-router:
+      address: 'static://localhost:59090'
+      enableKeepAlive: true
+      keepAliveWithoutCalls: true
+      negotiationType: plaintext
+
+app:
+  kafka:
+    hub-events:
+      consumer:
+        bootstrap-servers: localhost:9092
+        group-id: analyzer-hub-events-group
+        enable-auto-commit: true
+    snapshots:
+      consumer:
+        bootstrap-servers: localhost:9092
+        group-id: analyzer-snapshots-group
+        enable-auto-commit: false
+    topics:
+      hub-events: telemetry.hubs.v1
+      snapshots: telemetry.snapshots.v1
 
 eureka:
   client:

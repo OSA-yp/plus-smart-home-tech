@@ -8,6 +8,23 @@ spring:
       discovery:
         enabled: true
         serviceId: config-server
+      fail-fast: false
+  datasource:
+    url: jdbc:postgresql://localhost:5432/shopping-store-db
+    username: shopping_store_user
+    password: shopping_store_password
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
 
 server:
   port: 0
