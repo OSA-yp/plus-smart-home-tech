@@ -96,6 +96,34 @@ wait_for_http() {
     return 1
 }
 
+# Функция для проверки регистрации сервиса в Eureka
+wait_for_eureka_registration() {
+    local service_name=$1
+    local max_attempts=30
+    local attempt=0
+
+    log_info "Ожидание регистрации $service_name в Eureka..."
+    
+    while [ $attempt -lt $max_attempts ]; do
+        if command -v curl &> /dev/null; then
+            # Eureka регистрирует сервисы в верхнем регистре, но принимает запросы в любом регистре
+            # Проверяем наличие сервиса в Eureka (используем верхний регистр для проверки)
+            local upper_name=$(echo "$service_name" | tr '[:lower:]' '[:upper:]')
+            local response=$(curl -s "http://localhost:8761/eureka/apps/$upper_name" 2>/dev/null)
+            if echo "$response" | grep -qi "<name>$upper_name</name>" || echo "$response" | grep -qi "application"; then
+                log_success "$service_name зарегистрирован в Eureka"
+                return 0
+            fi
+        fi
+        attempt=$((attempt + 1))
+        echo -n "."
+        sleep 2
+    done
+    
+    log_warning "$service_name может быть еще не зарегистрирован в Eureka, продолжаем..."
+    return 0
+}
+
 # Шаг 1: Запуск Docker Compose
 log_info "========================================="
 log_info "Шаг 1: Запуск Docker Compose сервисов"
@@ -175,9 +203,57 @@ else
     exit 1
 fi
 
-# Шаг 5: Запуск Collector
+# Шаг 5: Запуск Warehouse
 log_info "========================================="
-log_info "Шаг 5: Запуск Collector"
+log_info "Шаг 5: Запуск Warehouse"
+log_info "========================================="
+
+log_info "Запуск Warehouse..."
+cd commerce/warehouse
+mvn spring-boot:run > ../../logs/warehouse.log 2>&1 &
+WAREHOUSE_PID=$!
+cd ../..
+
+log_info "Ожидание запуска Warehouse..."
+sleep 10
+wait_for_eureka_registration "warehouse"
+log_success "Warehouse запущен (PID: $WAREHOUSE_PID)"
+
+# Шаг 6: Запуск Shopping Store
+log_info "========================================="
+log_info "Шаг 6: Запуск Shopping Store"
+log_info "========================================="
+
+log_info "Запуск Shopping Store..."
+cd commerce/shopping-store
+mvn spring-boot:run > ../../logs/shopping-store.log 2>&1 &
+SHOPPING_STORE_PID=$!
+cd ../..
+
+log_info "Ожидание запуска Shopping Store..."
+sleep 10
+wait_for_eureka_registration "shopping-store"
+log_success "Shopping Store запущен (PID: $SHOPPING_STORE_PID)"
+
+# Шаг 7: Запуск Shopping Cart
+log_info "========================================="
+log_info "Шаг 7: Запуск Shopping Cart"
+log_info "========================================="
+
+log_info "Запуск Shopping Cart..."
+cd commerce/shopping-cart
+mvn spring-boot:run > ../../logs/shopping-cart.log 2>&1 &
+SHOPPING_CART_PID=$!
+cd ../..
+
+log_info "Ожидание запуска Shopping Cart..."
+sleep 10
+wait_for_eureka_registration "shopping-cart"
+log_success "Shopping Cart запущен (PID: $SHOPPING_CART_PID)"
+
+# Шаг 8: Запуск Collector
+log_info "========================================="
+log_info "Шаг 8: Запуск Collector"
 log_info "========================================="
 
 log_info "Запуск Collector..."
@@ -190,9 +266,9 @@ log_info "Ожидание запуска Collector..."
 sleep 10
 log_success "Collector запущен (PID: $COLLECTOR_PID)"
 
-# Шаг 6: Запуск Aggregator
+# Шаг 9: Запуск Aggregator
 log_info "========================================="
-log_info "Шаг 6: Запуск Aggregator"
+log_info "Шаг 9: Запуск Aggregator"
 log_info "========================================="
 
 log_info "Запуск Aggregator..."
@@ -205,9 +281,9 @@ log_info "Ожидание запуска Aggregator..."
 sleep 10
 log_success "Aggregator запущен (PID: $AGGREGATOR_PID)"
 
-# Шаг 7: Запуск Analyzer
+# Шаг 10: Запуск Analyzer
 log_info "========================================="
-log_info "Шаг 7: Запуск Analyzer"
+log_info "Шаг 10: Запуск Analyzer"
 log_info "========================================="
 
 log_info "Запуск Analyzer..."
@@ -224,6 +300,9 @@ log_success "Analyzer запущен (PID: $ANALYZER_PID)"
 echo "$ANALYZER_PID" > logs/pids.txt
 echo "$AGGREGATOR_PID" >> logs/pids.txt
 echo "$COLLECTOR_PID" >> logs/pids.txt
+echo "$SHOPPING_CART_PID" >> logs/pids.txt
+echo "$SHOPPING_STORE_PID" >> logs/pids.txt
+echo "$WAREHOUSE_PID" >> logs/pids.txt
 echo "$CONFIG_SERVER_PID" >> logs/pids.txt
 echo "$EUREKA_SERVER_PID" >> logs/pids.txt
 
@@ -235,6 +314,9 @@ echo ""
 log_info "Запущенные сервисы:"
 echo "  - Eureka Server: http://localhost:8761 (PID: $EUREKA_SERVER_PID)"
 echo "  - Config Server: http://localhost:8888 (PID: $CONFIG_SERVER_PID)"
+echo "  - Warehouse: (PID: $WAREHOUSE_PID)"
+echo "  - Shopping Store: (PID: $SHOPPING_STORE_PID)"
+echo "  - Shopping Cart: (PID: $SHOPPING_CART_PID)"
 echo "  - Collector: http://localhost:8080 (PID: $COLLECTOR_PID)"
 echo "  - Aggregator: (PID: $AGGREGATOR_PID)"
 echo "  - Analyzer: (PID: $ANALYZER_PID)"

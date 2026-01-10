@@ -52,7 +52,7 @@ if [ -f "logs/pids.txt" ]; then
     log_success "Java сервисы остановлены"
 else
     log_warning "Файл с PID процессов не найден. Попытка остановить по имени..."
-    # Остановка процессов по имени в правильном порядке
+    # Остановка процессов по имени в правильном порядке (обратном порядку запуска)
     log_info "Остановка Analyzer..."
     pkill -f "analyzer.*spring-boot:run" 2>/dev/null || true
     sleep 1
@@ -61,6 +61,15 @@ else
     sleep 1
     log_info "Остановка Collector..."
     pkill -f "collector.*spring-boot:run" 2>/dev/null || true
+    sleep 1
+    log_info "Остановка Shopping Cart..."
+    pkill -f "shopping-cart.*spring-boot:run" 2>/dev/null || true
+    sleep 1
+    log_info "Остановка Shopping Store..."
+    pkill -f "shopping-store.*spring-boot:run" 2>/dev/null || true
+    sleep 1
+    log_info "Остановка Warehouse..."
+    pkill -f "warehouse.*spring-boot:run" 2>/dev/null || true
     sleep 1
     log_info "Остановка Config Server..."
     pkill -f "config-server.*spring-boot:run" 2>/dev/null || true
