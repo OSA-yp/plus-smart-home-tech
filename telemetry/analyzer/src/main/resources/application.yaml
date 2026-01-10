@@ -30,6 +30,7 @@ grpc:
       enableKeepAlive: true
       keepAliveWithoutCalls: true
       negotiationType: plaintext
+      defaultRequestTimeout: 5s  # Таймаут 5 секунд для каждого запроса
 
 app:
   kafka:

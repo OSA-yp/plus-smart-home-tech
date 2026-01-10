@@ -1,7 +1,6 @@
 package ru.yandex.practicum.kafka.telemetry.service.processor;
 
 import com.google.protobuf.Timestamp;
-import io.grpc.StatusRuntimeException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.client.inject.GrpcClient;
@@ -318,12 +317,24 @@ public class SnapshotProcessor {
                 return;
             }
             
-            hubRouterClient.handleDeviceAction(request);
+            // Явный таймаут 5 секунд (дополнительно к конфигурации)
+            hubRouterClient.withDeadlineAfter(5, java.util.concurrent.TimeUnit.SECONDS)
+                    .handleDeviceAction(request);
+            
             log.info("Action successfully sent to Hub Router: scenario={}, sensorId={}, actionType={}", 
                     scenario.getName(), sensorId, action.getType());
-        } catch (StatusRuntimeException e) {
-            log.error("gRPC error executing action: scenario={}, sensorId={}, error={}", 
-                    scenario.getName(), sensorId, e.getMessage(), e);
+        } catch (io.grpc.StatusRuntimeException e) {
+            io.grpc.Status.Code statusCode = e.getStatus().getCode();
+            if (statusCode == io.grpc.Status.Code.DEADLINE_EXCEEDED) {
+                log.warn("gRPC call timeout for scenario={}, hubId={}. Hub Router may not be ready yet or too slow.", 
+                        scenario.getName(), hubId);
+            } else if (statusCode == io.grpc.Status.Code.UNAVAILABLE) {
+                log.warn("gRPC service unavailable for scenario={}, hubId={}. Hub Router may not be running on port 59090.", 
+                        scenario.getName(), hubId);
+            } else {
+                log.error("gRPC error executing action: scenario={}, sensorId={}, statusCode={}, error={}", 
+                        scenario.getName(), sensorId, statusCode, e.getMessage(), e);
+            }
         } catch (Exception e) {
             log.error("Unexpected error executing action: scenario={}, sensorId={}, error={}", 
                     scenario.getName(), sensorId, e.getMessage(), e);
