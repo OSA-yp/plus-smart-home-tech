@@ -116,7 +116,7 @@ public class SnapshotProcessor {
         List<Scenario> scenarios = scenarioRepository.findByHubId(hubId);
 
         if (scenarios.isEmpty()) {
-            log.debug("No scenarios found for hubId: {}", hubId);
+            log.info("No scenarios found for hubId: {}", hubId);
             return;
         }
 
