@@ -116,8 +116,22 @@ public class SnapshotProcessor {
         List<Scenario> scenarios = scenarioRepository.findByHubId(hubId);
 
         if (scenarios.isEmpty()) {
-            log.info("No scenarios found for hubId: {}", hubId);
-            return;
+            log.info("No scenarios found for hubId: {}, retrying after short delay", hubId);
+            // Повторная проверка через небольшую задержку для обработки race condition
+            // когда снапшот обрабатывается до сохранения сценариев
+            try {
+                Thread.sleep(500); // 500ms задержка
+                scenarios = scenarioRepository.findByHubId(hubId);
+                if (scenarios.isEmpty()) {
+                    log.info("No scenarios found for hubId: {} after retry", hubId);
+                    return;
+                }
+                log.info("Found {} scenarios for hubId: {} after retry", scenarios.size(), hubId);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("Interrupted while waiting for scenarios retry for hubId: {}", hubId);
+                return;
+            }
         }
 
         log.info("Found {} scenarios for hubId: {}", scenarios.size(), hubId);
