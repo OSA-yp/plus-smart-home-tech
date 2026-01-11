@@ -1,7 +1,6 @@
 package ru.yandex.practicum.kafka.telemetry.service.processor;
 
 import com.google.protobuf.Timestamp;
-import io.grpc.StatusRuntimeException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.client.inject.GrpcClient;
@@ -117,8 +116,22 @@ public class SnapshotProcessor {
         List<Scenario> scenarios = scenarioRepository.findByHubId(hubId);
 
         if (scenarios.isEmpty()) {
-            log.debug("No scenarios found for hubId: {}", hubId);
-            return;
+            log.info("No scenarios found for hubId: {}, retrying after short delay", hubId);
+            // Повторная проверка через небольшую задержку для обработки race condition
+            // когда снапшот обрабатывается до сохранения сценариев
+            try {
+                Thread.sleep(500); // 500ms задержка
+                scenarios = scenarioRepository.findByHubId(hubId);
+                if (scenarios.isEmpty()) {
+                    log.info("No scenarios found for hubId: {} after retry", hubId);
+                    return;
+                }
+                log.info("Found {} scenarios for hubId: {} after retry", scenarios.size(), hubId);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("Interrupted while waiting for scenarios retry for hubId: {}", hubId);
+                return;
+            }
         }
 
         log.info("Found {} scenarios for hubId: {}", scenarios.size(), hubId);
@@ -263,6 +276,65 @@ public class SnapshotProcessor {
         }
     }
 
+    private void sendActionWithRetry(DeviceActionRequest request, String scenarioName, String hubId, String sensorId, String actionType) {
+        int maxRetries = 3;
+        long[] delays = {500, 1000, 2000}; // миллисекунды
+        
+        for (int attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                if (attempt > 0) {
+                    log.info("Retry attempt {} for scenario={}, hubId={}, sensorId={}", 
+                            attempt, scenarioName, hubId, sensorId);
+                    Thread.sleep(delays[attempt - 1]);
+                }
+                
+                hubRouterClient.withDeadlineAfter(5, java.util.concurrent.TimeUnit.SECONDS)
+                        .handleDeviceAction(request);
+                
+                if (attempt > 0) {
+                    log.info("Action successfully sent after {} retries: scenario={}, sensorId={}", 
+                            attempt, scenarioName, sensorId);
+                } else {
+                    log.info("Action successfully sent to Hub Router: scenario={}, sensorId={}, actionType={}", 
+                            scenarioName, sensorId, actionType);
+                }
+                return; // Успешно отправлено
+                
+            } catch (io.grpc.StatusRuntimeException e) {
+                io.grpc.Status.Code statusCode = e.getStatus().getCode();
+                boolean shouldRetry = (statusCode == io.grpc.Status.Code.UNAVAILABLE || 
+                                      statusCode == io.grpc.Status.Code.DEADLINE_EXCEEDED);
+                
+                if (shouldRetry && attempt < maxRetries - 1) {
+                    log.warn("gRPC error (will retry): scenario={}, hubId={}, statusCode={}, attempt={}/{}", 
+                            scenarioName, hubId, statusCode, attempt + 1, maxRetries);
+                    continue;
+                } else {
+                    // Последняя попытка или не retryable ошибка
+                    if (statusCode == io.grpc.Status.Code.DEADLINE_EXCEEDED) {
+                        log.error("gRPC call timeout after {} attempts: scenario={}, hubId={}", 
+                                attempt + 1, scenarioName, hubId);
+                    } else if (statusCode == io.grpc.Status.Code.UNAVAILABLE) {
+                        log.error("gRPC service unavailable after {} attempts: scenario={}, hubId={}. Hub Router may not be running on port 59090.", 
+                                attempt + 1, scenarioName, hubId);
+                    } else {
+                        log.error("gRPC error executing action: scenario={}, sensorId={}, statusCode={}, error={}", 
+                                scenarioName, sensorId, statusCode, e.getMessage(), e);
+                    }
+                    return; // Не удалось отправить
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Interrupted during retry: scenario={}, hubId={}", scenarioName, hubId);
+                return;
+            } catch (Exception e) {
+                log.error("Unexpected error executing action: scenario={}, sensorId={}, error={}", 
+                        scenarioName, sensorId, e.getMessage(), e);
+                return;
+            }
+        }
+    }
+
     private void executeAction(Scenario scenario, String hubId, ScenarioAction scenarioAction, SensorsSnapshotAvro snapshot) {
         Action action = scenarioAction.getAction();
         String sensorId = scenarioAction.getSensor().getId();
@@ -308,25 +380,16 @@ public class SnapshotProcessor {
                 .setTimestamp(timestamp)
                 .build();
 
-        // Отправляем команду через gRPC
-        try {
-            log.info("Sending action to Hub Router: scenario={}, hubId={}, sensorId={}, actionType={}", 
-                    scenario.getName(), hubId, sensorId, action.getType());
-            
-            if (hubRouterClient == null) {
-                log.error("Hub Router client is null! Check gRPC configuration.");
-                return;
-            }
-            
-            hubRouterClient.handleDeviceAction(request);
-            log.info("Action successfully sent to Hub Router: scenario={}, sensorId={}, actionType={}", 
-                    scenario.getName(), sensorId, action.getType());
-        } catch (StatusRuntimeException e) {
-            log.error("gRPC error executing action: scenario={}, sensorId={}, error={}", 
-                    scenario.getName(), sensorId, e.getMessage(), e);
-        } catch (Exception e) {
-            log.error("Unexpected error executing action: scenario={}, sensorId={}, error={}", 
-                    scenario.getName(), sensorId, e.getMessage(), e);
+        // Проверяем, что клиент инициализирован
+        if (hubRouterClient == null) {
+            log.error("Hub Router client is null! Check gRPC configuration.");
+            return;
         }
+
+        // Отправляем команду через gRPC с retry логикой
+        log.info("Sending action to Hub Router: scenario={}, hubId={}, sensorId={}, actionType={}", 
+                scenario.getName(), hubId, sensorId, action.getType());
+        
+        sendActionWithRetry(request, scenario.getName(), hubId, sensorId, action.getType());
     }
 }

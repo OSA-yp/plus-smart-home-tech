@@ -93,6 +93,7 @@ pom.xml.next
 release.properties
 dependency-reduced-pom.xml
 buildNumber.properties
+.mvn/
 .mvn/timing.properties
 # https://github.com/takari/maven-wrapper#usage-without-binary-jar
 .mvn/wrapper/maven-wrapper.jar
@@ -128,3 +129,8 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+### Project specific ###
+# Logs directory
+logs/
+*.log
