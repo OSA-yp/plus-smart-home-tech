@@ -62,6 +62,18 @@ else
     log_info "Остановка Collector..."
     pkill -f "collector.*spring-boot:run" 2>/dev/null || true
     sleep 1
+    log_info "Остановка Gateway..."
+    pkill -f "gateway.*spring-boot:run" 2>/dev/null || true
+    sleep 1
+    log_info "Остановка Delivery..."
+    pkill -f "delivery.*spring-boot:run" 2>/dev/null || true
+    sleep 1
+    log_info "Остановка Payment..."
+    pkill -f "payment.*spring-boot:run" 2>/dev/null || true
+    sleep 1
+    log_info "Остановка Order..."
+    pkill -f "order.*spring-boot:run" 2>/dev/null || true
+    sleep 1
     log_info "Остановка Shopping Cart..."
     pkill -f "shopping-cart.*spring-boot:run" 2>/dev/null || true
     sleep 1

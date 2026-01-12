@@ -4,29 +4,37 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.commerce.interaction.dto.cart.ShoppingCartDto;
 import ru.yandex.practicum.commerce.interaction.dto.warehouse.AddProductToWarehouseRequest;
+import ru.yandex.practicum.commerce.interaction.dto.warehouse.AssemblyProductsForOrderRequest;
 import ru.yandex.practicum.commerce.interaction.dto.warehouse.BookedProductsDto;
-import ru.yandex.practicum.commerce.interaction.dto.warehouse.DimensionDto;
 import ru.yandex.practicum.commerce.interaction.dto.warehouse.NewProductInWarehouseRequest;
+import ru.yandex.practicum.commerce.interaction.dto.warehouse.ShippedToDeliveryRequest;
 import ru.yandex.practicum.commerce.warehouse.entity.Dimension;
+import ru.yandex.practicum.commerce.warehouse.entity.OrderBooking;
 import ru.yandex.practicum.commerce.warehouse.entity.ProductInWarehouse;
 import ru.yandex.practicum.commerce.warehouse.exception.NoSpecifiedProductInWarehouseException;
 import ru.yandex.practicum.commerce.warehouse.exception.ProductInShoppingCartLowQuantityInWarehouse;
 import ru.yandex.practicum.commerce.warehouse.exception.SpecifiedProductAlreadyInWarehouseException;
 import ru.yandex.practicum.commerce.warehouse.mapper.WarehouseMapper;
+import ru.yandex.practicum.commerce.warehouse.repository.OrderBookingRepository;
 import ru.yandex.practicum.commerce.warehouse.repository.ProductInWarehouseRepository;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
 public class WarehouseService {
 
     private final ProductInWarehouseRepository repository;
+    private final OrderBookingRepository orderBookingRepository;
     private final WarehouseMapper mapper;
 
-    public WarehouseService(ProductInWarehouseRepository repository, WarehouseMapper mapper) {
+    public WarehouseService(ProductInWarehouseRepository repository,
+                           OrderBookingRepository orderBookingRepository,
+                           WarehouseMapper mapper) {
         this.repository = repository;
+        this.orderBookingRepository = orderBookingRepository;
         this.mapper = mapper;
     }
 
@@ -102,5 +110,67 @@ public class WarehouseService {
         result.setDeliveryVolume(totalVolume);
         result.setFragile(hasFragile);
         return result;
+    }
+
+    @Transactional
+    public BookedProductsDto assemblyProductsForOrder(AssemblyProductsForOrderRequest request) {
+        // Проверяем наличие товаров и уменьшаем остатки
+        for (var entry : request.getProducts().entrySet()) {
+            UUID productId = entry.getKey();
+            Long quantity = entry.getValue();
+
+            ProductInWarehouse product = repository.findByProductId(productId)
+                    .orElseThrow(() -> new NoSpecifiedProductInWarehouseException(
+                            "Product not found in warehouse: " + productId));
+
+            if (product.getQuantity() < quantity) {
+                throw new ProductInShoppingCartLowQuantityInWarehouse(
+                        "Insufficient quantity for product " + productId +
+                                ": required " + quantity + ", available " + product.getQuantity());
+            }
+
+            // Уменьшаем остаток
+            product.setQuantity(product.getQuantity() - quantity);
+            repository.save(product);
+
+            // Создаем запись о бронировании
+            OrderBooking booking = new OrderBooking();
+            booking.setOrderId(request.getOrderId());
+            booking.setProductId(productId);
+            booking.setQuantity(quantity);
+            orderBookingRepository.save(booking);
+        }
+
+        // Возвращаем информацию о забронированных товарах
+        ShoppingCartDto cartDto = new ShoppingCartDto();
+        cartDto.setShoppingCartId(UUID.randomUUID()); // Временный ID
+        cartDto.setProducts(request.getProducts());
+        return checkProductQuantityEnoughForShoppingCart(cartDto);
+    }
+
+    @Transactional
+    public void shippedToDelivery(ShippedToDeliveryRequest request) {
+        // Обновляем OrderBooking, добавляя deliveryId
+        List<OrderBooking> bookings = orderBookingRepository.findByOrderId(request.getOrderId());
+        for (OrderBooking booking : bookings) {
+            booking.setDeliveryId(request.getDeliveryId());
+            orderBookingRepository.save(booking);
+        }
+    }
+
+    @Transactional
+    public void acceptReturn(Map<UUID, Long> products) {
+        // Увеличиваем остатки товаров на складе
+        for (var entry : products.entrySet()) {
+            UUID productId = entry.getKey();
+            Long quantity = entry.getValue();
+
+            ProductInWarehouse product = repository.findByProductId(productId)
+                    .orElseThrow(() -> new NoSpecifiedProductInWarehouseException(
+                            "Product not found in warehouse: " + productId));
+
+            product.setQuantity(product.getQuantity() + quantity);
+            repository.save(product);
+        }
     }
 }

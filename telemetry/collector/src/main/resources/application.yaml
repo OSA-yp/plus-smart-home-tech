@@ -10,6 +10,9 @@ spring:
         serviceId: config-server
       fail-fast: false
 
+server:
+  port: 8081
+
 management:
   endpoints:
     web:
