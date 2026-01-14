@@ -251,9 +251,74 @@ sleep 10
 wait_for_eureka_registration "shopping-cart"
 log_success "Shopping Cart запущен (PID: $SHOPPING_CART_PID)"
 
-# Шаг 8: Запуск Collector
+# Шаг 8: Запуск Order
 log_info "========================================="
-log_info "Шаг 8: Запуск Collector"
+log_info "Шаг 8: Запуск Order"
+log_info "========================================="
+
+log_info "Запуск Order..."
+cd commerce/order
+mvn spring-boot:run > ../../logs/order.log 2>&1 &
+ORDER_PID=$!
+cd ../..
+
+log_info "Ожидание запуска Order..."
+sleep 10
+wait_for_eureka_registration "order"
+log_success "Order запущен (PID: $ORDER_PID)"
+
+# Шаг 9: Запуск Payment
+log_info "========================================="
+log_info "Шаг 9: Запуск Payment"
+log_info "========================================="
+
+log_info "Запуск Payment..."
+cd commerce/payment
+mvn spring-boot:run > ../../logs/payment.log 2>&1 &
+PAYMENT_PID=$!
+cd ../..
+
+log_info "Ожидание запуска Payment..."
+sleep 10
+wait_for_eureka_registration "payment"
+log_success "Payment запущен (PID: $PAYMENT_PID)"
+
+# Шаг 10: Запуск Delivery
+log_info "========================================="
+log_info "Шаг 10: Запуск Delivery"
+log_info "========================================="
+
+log_info "Запуск Delivery..."
+cd commerce/delivery
+mvn spring-boot:run > ../../logs/delivery.log 2>&1 &
+DELIVERY_PID=$!
+cd ../..
+
+log_info "Ожидание запуска Delivery..."
+sleep 10
+wait_for_eureka_registration "delivery"
+log_success "Delivery запущен (PID: $DELIVERY_PID)"
+
+# Шаг 11: Запуск Gateway
+log_info "========================================="
+log_info "Шаг 11: Запуск Gateway"
+log_info "========================================="
+
+log_info "Запуск Gateway..."
+cd infra/gateway
+mvn spring-boot:run > ../../logs/gateway.log 2>&1 &
+GATEWAY_PID=$!
+cd ../..
+
+log_info "Ожидание запуска Gateway..."
+sleep 10
+wait_for_http "http://localhost:8080/actuator/health" "Gateway"
+wait_for_eureka_registration "gateway"
+log_success "Gateway запущен (PID: $GATEWAY_PID)"
+
+# Шаг 12: Запуск Collector
+log_info "========================================="
+log_info "Шаг 12: Запуск Collector"
 log_info "========================================="
 
 log_info "Запуск Collector..."
@@ -264,11 +329,12 @@ cd ../..
 
 log_info "Ожидание запуска Collector..."
 sleep 10
+wait_for_http "http://localhost:8081/actuator/health" "Collector"
 log_success "Collector запущен (PID: $COLLECTOR_PID)"
 
-# Шаг 9: Запуск Aggregator
+# Шаг 13: Запуск Aggregator
 log_info "========================================="
-log_info "Шаг 9: Запуск Aggregator"
+log_info "Шаг 13: Запуск Aggregator"
 log_info "========================================="
 
 log_info "Запуск Aggregator..."
@@ -281,9 +347,9 @@ log_info "Ожидание запуска Aggregator..."
 sleep 10
 log_success "Aggregator запущен (PID: $AGGREGATOR_PID)"
 
-# Шаг 10: Запуск Analyzer
+# Шаг 14: Запуск Analyzer
 log_info "========================================="
-log_info "Шаг 10: Запуск Analyzer"
+log_info "Шаг 14: Запуск Analyzer"
 log_info "========================================="
 
 log_info "Запуск Analyzer..."
@@ -300,6 +366,10 @@ log_success "Analyzer запущен (PID: $ANALYZER_PID)"
 echo "$ANALYZER_PID" > logs/pids.txt
 echo "$AGGREGATOR_PID" >> logs/pids.txt
 echo "$COLLECTOR_PID" >> logs/pids.txt
+echo "$GATEWAY_PID" >> logs/pids.txt
+echo "$DELIVERY_PID" >> logs/pids.txt
+echo "$PAYMENT_PID" >> logs/pids.txt
+echo "$ORDER_PID" >> logs/pids.txt
 echo "$SHOPPING_CART_PID" >> logs/pids.txt
 echo "$SHOPPING_STORE_PID" >> logs/pids.txt
 echo "$WAREHOUSE_PID" >> logs/pids.txt
@@ -317,7 +387,11 @@ echo "  - Config Server: http://localhost:8888 (PID: $CONFIG_SERVER_PID)"
 echo "  - Warehouse: (PID: $WAREHOUSE_PID)"
 echo "  - Shopping Store: (PID: $SHOPPING_STORE_PID)"
 echo "  - Shopping Cart: (PID: $SHOPPING_CART_PID)"
-echo "  - Collector: http://localhost:8080 (PID: $COLLECTOR_PID)"
+echo "  - Order: (PID: $ORDER_PID)"
+echo "  - Payment: (PID: $PAYMENT_PID)"
+echo "  - Delivery: (PID: $DELIVERY_PID)"
+echo "  - Gateway: http://localhost:8080 (PID: $GATEWAY_PID)"
+echo "  - Collector: http://localhost:8081 (PID: $COLLECTOR_PID)"
 echo "  - Aggregator: (PID: $AGGREGATOR_PID)"
 echo "  - Analyzer: (PID: $ANALYZER_PID)"
 echo ""

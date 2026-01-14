@@ -1,0 +1,52 @@
+spring:
+  application:
+    name: gateway
+  config:
+    import: "optional:configserver:"
+  cloud:
+    config:
+      # не падать при недоступности config-server, а ждать его появления
+      fail-fast: false
+      # если config-server недоступен, нужно сделать несколько попыток подключиться
+      retry:
+        # используем случайный backoff между попытками
+        useRandomPolicy: true
+        # начальный интервал между попытками (в миллисекундах)
+        initial-interval: 1000
+        # максимальный интервал, в течение которого делаем попытки (30000 миллисекунд = 30 сек)
+        max-interval: 30000
+        # множитель для увеличения интервала между попытками
+        multiplier: 1.5
+        # максимальное количество попыток (0 = бесконечно)
+        max-attempts: 0
+      discovery:
+        enabled: true
+        serviceId: config-server
+    gateway:
+      # Базовая конфигурация на случай недоступности Config Server
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    preferIpAddress: true
+    hostname: localhost
+    instance-id: "${spring.application.name}:${random.value}"
+    leaseRenewalIntervalInSeconds: 10

@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: delivery
+  config:
+    import: "optional:configserver:"
+  cloud:
+    config:
+      discovery:
+        enabled: true
+        serviceId: config-server
+      fail-fast: false

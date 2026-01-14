@@ -11,10 +11,15 @@ import ru.yandex.practicum.commerce.interaction.client.WarehouseClient;
 import ru.yandex.practicum.commerce.interaction.dto.cart.ShoppingCartDto;
 import ru.yandex.practicum.commerce.interaction.dto.warehouse.AddProductToWarehouseRequest;
 import ru.yandex.practicum.commerce.interaction.dto.warehouse.AddressDto;
+import ru.yandex.practicum.commerce.interaction.dto.warehouse.AssemblyProductsForOrderRequest;
 import ru.yandex.practicum.commerce.interaction.dto.warehouse.BookedProductsDto;
 import ru.yandex.practicum.commerce.interaction.dto.warehouse.NewProductInWarehouseRequest;
+import ru.yandex.practicum.commerce.interaction.dto.warehouse.ShippedToDeliveryRequest;
 import ru.yandex.practicum.commerce.warehouse.service.AddressService;
 import ru.yandex.practicum.commerce.warehouse.service.WarehouseService;
+
+import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -50,5 +55,23 @@ public class WarehouseController implements WarehouseClient {
     @GetMapping("/warehouse/address")
     public AddressDto getWarehouseAddress() {
         return addressService.getWarehouseAddress();
+    }
+
+    @Override
+    @PostMapping("/warehouse/assembly")
+    public BookedProductsDto assemblyProductsForOrder(@RequestBody @Valid AssemblyProductsForOrderRequest request) {
+        return warehouseService.assemblyProductsForOrder(request);
+    }
+
+    @Override
+    @PostMapping("/warehouse/shipped")
+    public void shippedToDelivery(@RequestBody @Valid ShippedToDeliveryRequest request) {
+        warehouseService.shippedToDelivery(request);
+    }
+
+    @Override
+    @PostMapping("/warehouse/return")
+    public void acceptReturn(@RequestBody Map<UUID, Long> products) {
+        warehouseService.acceptReturn(products);
     }
 }

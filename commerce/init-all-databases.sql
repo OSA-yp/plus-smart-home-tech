@@ -43,6 +43,51 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO warehouse_us
 -- Возврат к postgres БД для создания следующей
 \c postgres
 
+-- Создание базы данных и пользователя для order
+CREATE DATABASE "order-db";
+CREATE USER order_user WITH PASSWORD 'order_password';
+GRANT ALL PRIVILEGES ON DATABASE "order-db" TO order_user;
+
+-- Переключение на БД order-db для выдачи прав на схему
+\c "order-db"
+GRANT CREATE ON SCHEMA public TO order_user;
+GRANT ALL PRIVILEGES ON SCHEMA public TO order_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO order_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO order_user;
+
+-- Возврат к postgres БД для создания следующей
+\c postgres
+
+-- Создание базы данных и пользователя для payment
+CREATE DATABASE "payment-db";
+CREATE USER payment_user WITH PASSWORD 'payment_password';
+GRANT ALL PRIVILEGES ON DATABASE "payment-db" TO payment_user;
+
+-- Переключение на БД payment-db для выдачи прав на схему
+\c "payment-db"
+GRANT CREATE ON SCHEMA public TO payment_user;
+GRANT ALL PRIVILEGES ON SCHEMA public TO payment_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO payment_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO payment_user;
+
+-- Возврат к postgres БД для создания следующей
+\c postgres
+
+-- Создание базы данных и пользователя для delivery
+CREATE DATABASE "delivery-db";
+CREATE USER delivery_user WITH PASSWORD 'delivery_password';
+GRANT ALL PRIVILEGES ON DATABASE "delivery-db" TO delivery_user;
+
+-- Переключение на БД delivery-db для выдачи прав на схему
+\c "delivery-db"
+GRANT CREATE ON SCHEMA public TO delivery_user;
+GRANT ALL PRIVILEGES ON SCHEMA public TO delivery_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO delivery_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO delivery_user;
+
+-- Возврат к postgres БД для создания следующей
+\c postgres
+
 -- Создание базы данных и пользователя для analyzer
 CREATE DATABASE analyzer_db;
 CREATE USER analyzer_user WITH PASSWORD 'analyzer_password';
