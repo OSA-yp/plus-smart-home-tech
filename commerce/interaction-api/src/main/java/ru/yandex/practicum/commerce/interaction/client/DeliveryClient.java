@@ -10,20 +10,20 @@ import ru.yandex.practicum.commerce.interaction.dto.order.OrderDto;
 
 import java.util.UUID;
 
-@FeignClient(name = "delivery")
+@FeignClient(name = "delivery", path = "/api/v1/delivery")
 public interface DeliveryClient {
-    @PutMapping("/api/v1/delivery")
+    @PutMapping
     DeliveryDto planDelivery(@RequestBody @Valid DeliveryDto delivery);
 
-    @PostMapping("/api/v1/delivery/cost")
+    @PostMapping("/cost")
     Double deliveryCost(@RequestBody @Valid OrderDto order);
 
-    @PostMapping("/api/v1/delivery/successful")
+    @PostMapping("/successful")
     void deliverySuccessful(@RequestBody UUID orderId);
 
-    @PostMapping("/api/v1/delivery/picked")
+    @PostMapping("/picked")
     void deliveryPicked(@RequestBody UUID orderId);
 
-    @PostMapping("/api/v1/delivery/failed")
+    @PostMapping("/failed")
     void deliveryFailed(@RequestBody UUID orderId);
 }

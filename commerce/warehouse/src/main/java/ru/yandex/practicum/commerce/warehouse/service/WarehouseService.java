@@ -114,7 +114,13 @@ public class WarehouseService {
 
     @Transactional
     public BookedProductsDto assemblyProductsForOrder(AssemblyProductsForOrderRequest request) {
-        // Проверяем наличие товаров и уменьшаем остатки
+        // Сначала проверяем наличие товаров
+        ShoppingCartDto cartDto = new ShoppingCartDto();
+        cartDto.setShoppingCartId(UUID.randomUUID()); // Временный ID
+        cartDto.setProducts(request.getProducts());
+        BookedProductsDto bookedProducts = checkProductQuantityEnoughForShoppingCart(cartDto);
+
+        // После успешной проверки уменьшаем остатки и создаем бронирования
         for (var entry : request.getProducts().entrySet()) {
             UUID productId = entry.getKey();
             Long quantity = entry.getValue();
@@ -122,12 +128,6 @@ public class WarehouseService {
             ProductInWarehouse product = repository.findByProductId(productId)
                     .orElseThrow(() -> new NoSpecifiedProductInWarehouseException(
                             "Product not found in warehouse: " + productId));
-
-            if (product.getQuantity() < quantity) {
-                throw new ProductInShoppingCartLowQuantityInWarehouse(
-                        "Insufficient quantity for product " + productId +
-                                ": required " + quantity + ", available " + product.getQuantity());
-            }
 
             // Уменьшаем остаток
             product.setQuantity(product.getQuantity() - quantity);
@@ -142,10 +142,7 @@ public class WarehouseService {
         }
 
         // Возвращаем информацию о забронированных товарах
-        ShoppingCartDto cartDto = new ShoppingCartDto();
-        cartDto.setShoppingCartId(UUID.randomUUID()); // Временный ID
-        cartDto.setProducts(request.getProducts());
-        return checkProductQuantityEnoughForShoppingCart(cartDto);
+        return bookedProducts;
     }
 
     @Transactional
